@@ -790,11 +790,11 @@ static void setup_lighting(void) {
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 
-    GLfloat ambient[]  = {0.35f, 0.35f, 0.40f, 1.0f};
+    GLfloat ambient[]  = {0.6f,  0.6f,  0.65f, 1.0f};
     GLfloat diffuse[]  = {1.0f,  0.95f, 0.85f, 1.0f};
     GLfloat pos0[]     = {10.f, 15.f, 10.f, 1.f};
     GLfloat pos1[]     = {10.f,  8.f, 10.f, 1.f};
-    GLfloat diff1[]    = {0.3f,  0.4f, 0.6f, 1.f};
+    GLfloat diff1[]    = {0.4f,  0.5f, 0.7f, 1.f};
 
     glLightfv(GL_LIGHT0, GL_AMBIENT,  ambient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE,  diffuse);
@@ -841,8 +841,6 @@ int main(int argc, char *argv[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 
     SDL_Window *win = SDL_CreateWindow(
         "Roblox Tarzli 3D Oyun - OpenGL",
@@ -864,10 +862,8 @@ int main(int argc, char *argv[]) {
 
     /* OpenGL başlangıç ayarları */
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glEnable(GL_MULTISAMPLE);
+    glDepthFunc(GL_LEQUAL);
+    glDisable(GL_CULL_FACE);   /* Winding order sorununu önler */
     glClearColor(0.53f, 0.81f, 0.98f, 1.0f);
 
     /* Oyun verileri */
