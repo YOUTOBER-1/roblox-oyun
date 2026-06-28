@@ -9,14 +9,14 @@ on:
 
 jobs:
   build-windows:
-    name: Windows .exe Derle
+    name: Windows .exe Derle (Statik - DLL yok)
     runs-on: windows-latest
 
     steps:
       - name: Kaynak kodu indir
         uses: actions/checkout@v4
 
-      - name: MinGW + SDL2 kur (pacman ile)
+      - name: MinGW + SDL2 kur
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -26,34 +26,30 @@ jobs:
             mingw-w64-x86_64-make
             mingw-w64-x86_64-SDL2
 
-      - name: Derle (.exe)
+      - name: Statik derle (.exe - DLL gerekmez)
         shell: msys2 {0}
         run: |
           gcc -O2 -Wall src/main.c \
-            $(sdl2-config --cflags --libs) \
+            $(sdl2-config --cflags) \
+            -o roblox_game.exe \
+            -lmingw32 -lSDL2main \
+            -Wl,-Bstatic -lSDL2 \
+            -Wl,-Bdynamic \
             -lm -mwindows \
-            -o roblox_game.exe
+            -limm32 -lole32 -loleaut32 -lversion -lwinmm -lsetupapi -lgdi32 -luser32
           echo "=== Derleme tamamlandi! ==="
           ls -lh roblox_game.exe
 
-      - name: SDL2.dll bul ve kopyala
-        shell: msys2 {0}
-        run: |
-          SDL2_DLL=$(find /mingw64/bin -name "SDL2.dll" | head -1)
-          echo "SDL2.dll yolu: $SDL2_DLL"
-          cp "$SDL2_DLL" .
-
-      - name: EXE ve DLL'i paketle
+      - name: EXE'yi paketle
         shell: powershell
         run: |
           New-Item -ItemType Directory -Name "roblox_oyun_windows" -Force
           Copy-Item "roblox_game.exe" "roblox_oyun_windows/"
-          Copy-Item "SDL2.dll" "roblox_oyun_windows/"
           if (Test-Path "README.txt") {
             Copy-Item "README.txt" "roblox_oyun_windows/"
           }
           Compress-Archive -Path "roblox_oyun_windows" -DestinationPath "roblox_oyun_windows.zip"
-          Write-Host "Paket hazirlandi!"
+          Write-Host "Paket hazirlandi - tek EXE, DLL yok!"
 
       - name: Artifact olarak yukle
         uses: actions/upload-artifact@v4
@@ -79,7 +75,6 @@ jobs:
             $(sdl2-config --cflags --libs) \
             -lm \
             -o roblox_game
-          echo "Derleme tamam!"
           ls -lh roblox_game
 
       - name: Artifact olarak yukle
