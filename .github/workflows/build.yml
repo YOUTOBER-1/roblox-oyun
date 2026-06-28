@@ -1,0 +1,96 @@
+name: Windows EXE Derle
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Windows .exe Derle
+    runs-on: windows-latest
+
+    steps:
+      - name: Kaynak kodu indir
+        uses: actions/checkout@v4
+
+      - name: SDL2 indir
+        shell: powershell
+        run: |
+          $url = "https://github.com/libsdl-org/SDL/releases/download/release-2.30.3/SDL2-devel-2.30.3-mingw.zip"
+          Invoke-WebRequest -Uri $url -OutFile "SDL2.zip"
+          Expand-Archive -Path "SDL2.zip" -DestinationPath "."
+          Move-Item "SDL2-2.30.3" "SDL2"
+          echo "SDL2_PATH=$env:GITHUB_WORKSPACE/SDL2" >> $env:GITHUB_ENV
+
+      - name: MinGW GCC kur
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+
+      - name: Derle (.exe)
+        shell: msys2 {0}
+        run: |
+          SDL2_INC="${{ env.SDL2_PATH }}/x86_64-w64-mingw32/include/SDL2"
+          SDL2_LIB="${{ env.SDL2_PATH }}/x86_64-w64-mingw32/lib"
+          gcc -O2 -Wall src/main.c \
+            -I"$SDL2_INC" \
+            -L"$SDL2_LIB" \
+            -lSDL2main -lSDL2 -lm -mwindows \
+            -o roblox_game.exe
+          echo "Derleme tamamlandi!"
+          ls -lh roblox_game.exe
+
+      - name: SDL2.dll kopyala
+        shell: powershell
+        run: |
+          Copy-Item "$env:SDL2_PATH/x86_64-w64-mingw32/bin/SDL2.dll" -Destination "."
+
+      - name: EXE ve DLL'i paketle
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Name "roblox_oyun_windows" -Force
+          Copy-Item "roblox_game.exe" "roblox_oyun_windows/"
+          Copy-Item "SDL2.dll" "roblox_oyun_windows/"
+          Copy-Item "README.txt" "roblox_oyun_windows/" -ErrorAction SilentlyContinue
+          Compress-Archive -Path "roblox_oyun_windows" -DestinationPath "roblox_oyun_windows.zip"
+
+      - name: Artifact olarak yukle (indir butonu)
+        uses: actions/upload-artifact@v4
+        with:
+          name: roblox-oyun-windows
+          path: roblox_oyun_windows.zip
+          retention-days: 30
+
+  build-linux:
+    name: Linux binary derle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kaynak kodu indir
+        uses: actions/checkout@v4
+
+      - name: SDL2 kur
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+
+      - name: Derle
+        run: |
+          gcc -O2 -Wall src/main.c \
+            $(sdl2-config --cflags --libs) \
+            -lm \
+            -o roblox_game
+          echo "Derleme tamam!"
+          ls -lh roblox_game
+
+      - name: Artifact olarak yukle
+        uses: actions/upload-artifact@v4
+        with:
+          name: roblox-oyun-linux
+          path: roblox_game
+          retention-days: 30
