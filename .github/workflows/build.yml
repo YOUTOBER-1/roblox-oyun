@@ -16,16 +16,7 @@ jobs:
       - name: Kaynak kodu indir
         uses: actions/checkout@v4
 
-      - name: SDL2 indir
-        shell: powershell
-        run: |
-          $url = "https://github.com/libsdl-org/SDL/releases/download/release-2.30.3/SDL2-devel-2.30.3-mingw.zip"
-          Invoke-WebRequest -Uri $url -OutFile "SDL2.zip"
-          Expand-Archive -Path "SDL2.zip" -DestinationPath "."
-          Move-Item "SDL2-2.30.3" "SDL2"
-          echo "SDL2_PATH=$env:GITHUB_WORKSPACE/SDL2" >> $env:GITHUB_ENV
-
-      - name: MinGW GCC kur
+      - name: MinGW + SDL2 kur (pacman ile)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -33,24 +24,24 @@ jobs:
           install: >-
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
+            mingw-w64-x86_64-SDL2
 
       - name: Derle (.exe)
         shell: msys2 {0}
         run: |
-          SDL2_INC="${{ env.SDL2_PATH }}/x86_64-w64-mingw32/include/SDL2"
-          SDL2_LIB="${{ env.SDL2_PATH }}/x86_64-w64-mingw32/lib"
           gcc -O2 -Wall src/main.c \
-            -I"$SDL2_INC" \
-            -L"$SDL2_LIB" \
-            -lSDL2main -lSDL2 -lm -mwindows \
+            $(sdl2-config --cflags --libs) \
+            -lm -mwindows \
             -o roblox_game.exe
-          echo "Derleme tamamlandi!"
+          echo "=== Derleme tamamlandi! ==="
           ls -lh roblox_game.exe
 
-      - name: SDL2.dll kopyala
-        shell: powershell
+      - name: SDL2.dll bul ve kopyala
+        shell: msys2 {0}
         run: |
-          Copy-Item "$env:SDL2_PATH/x86_64-w64-mingw32/bin/SDL2.dll" -Destination "."
+          SDL2_DLL=$(find /mingw64/bin -name "SDL2.dll" | head -1)
+          echo "SDL2.dll yolu: $SDL2_DLL"
+          cp "$SDL2_DLL" .
 
       - name: EXE ve DLL'i paketle
         shell: powershell
@@ -58,10 +49,13 @@ jobs:
           New-Item -ItemType Directory -Name "roblox_oyun_windows" -Force
           Copy-Item "roblox_game.exe" "roblox_oyun_windows/"
           Copy-Item "SDL2.dll" "roblox_oyun_windows/"
-          Copy-Item "README.txt" "roblox_oyun_windows/" -ErrorAction SilentlyContinue
+          if (Test-Path "README.txt") {
+            Copy-Item "README.txt" "roblox_oyun_windows/"
+          }
           Compress-Archive -Path "roblox_oyun_windows" -DestinationPath "roblox_oyun_windows.zip"
+          Write-Host "Paket hazirlandi!"
 
-      - name: Artifact olarak yukle (indir butonu)
+      - name: Artifact olarak yukle
         uses: actions/upload-artifact@v4
         with:
           name: roblox-oyun-windows
