@@ -1,4 +1,4 @@
-name: Windows EXE Derle
+name: Windows EXE Derle (OpenGL 3D)
 
 on:
   push:
@@ -9,14 +9,14 @@ on:
 
 jobs:
   build-windows:
-    name: Windows .exe Derle (Statik - DLL yok)
+    name: Windows .exe Derle - OpenGL 3D
     runs-on: windows-latest
 
     steps:
       - name: Kaynak kodu indir
         uses: actions/checkout@v4
 
-      - name: MinGW + SDL2 kur
+      - name: MinGW + SDL2 + OpenGL kur
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -26,7 +26,7 @@ jobs:
             mingw-w64-x86_64-make
             mingw-w64-x86_64-SDL2
 
-      - name: Statik derle (.exe - DLL gerekmez)
+      - name: Statik derle - OpenGL 3D (.exe)
         shell: msys2 {0}
         run: |
           gcc -O2 -Wall src/main.c \
@@ -35,12 +35,13 @@ jobs:
             -lmingw32 -lSDL2main \
             -Wl,-Bstatic -lSDL2 \
             -Wl,-Bdynamic \
+            -lopengl32 -lglu32 \
             -lm -mwindows \
             -limm32 -lole32 -loleaut32 -lversion -lwinmm -lsetupapi -lgdi32 -luser32
-          echo "=== Derleme tamamlandi! ==="
+          echo "=== OpenGL 3D derleme tamamlandi! ==="
           ls -lh roblox_game.exe
 
-      - name: EXE'yi paketle
+      - name: EXE'yi paketle (tek dosya, DLL yok)
         shell: powershell
         run: |
           New-Item -ItemType Directory -Name "roblox_oyun_windows" -Force
@@ -49,9 +50,9 @@ jobs:
             Copy-Item "README.txt" "roblox_oyun_windows/"
           }
           Compress-Archive -Path "roblox_oyun_windows" -DestinationPath "roblox_oyun_windows.zip"
-          Write-Host "Paket hazirlandi - tek EXE, DLL yok!"
+          Write-Host "Hazir! Tek EXE - DLL gerekmez, OpenGL sisteme entegre!"
 
-      - name: Artifact olarak yukle
+      - name: Artifact yukle
         uses: actions/upload-artifact@v4
         with:
           name: roblox-oyun-windows
@@ -66,18 +67,18 @@ jobs:
       - name: Kaynak kodu indir
         uses: actions/checkout@v4
 
-      - name: SDL2 kur
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+      - name: Bagimliliklar
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libgl1-mesa-dev libglu1-mesa-dev
 
       - name: Derle
         run: |
           gcc -O2 -Wall src/main.c \
             $(sdl2-config --cflags --libs) \
-            -lm \
+            -lGL -lGLU -lm \
             -o roblox_game
           ls -lh roblox_game
 
-      - name: Artifact olarak yukle
+      - name: Artifact yukle
         uses: actions/upload-artifact@v4
         with:
           name: roblox-oyun-linux
