@@ -1,573 +1,892 @@
 /*
- * Roblox Tarzı 3D Oyun - SDL2 ile C
- * Windows & Linux destekli
- * Derleme: gcc main.c -o game $(sdl2-config --cflags --libs) -lm
+ * ROBLOX TARZLI 3D OYUN
+ * SDL2 + OpenGL + GLU - Gercek 3D Perspektif
+ * Derleme: gcc main.c -o game $(sdl2-config --cflags --libs) -lGL -lGLU -lm
  */
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
+#include <GL/glu.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-/* --- Sabitler --- */
-#define SCREEN_W     900
-#define SCREEN_H     600
-#define TILE_SIZE    40
-#define MAP_W        20
-#define MAP_H        20
-#define MAX_COINS    30
-#define MAX_ENEMIES  5
+/* ===== SABİTLER ===== */
+#define SCREEN_W     1024
+#define SCREEN_H     640
 #define FPS          60
 #define FRAME_TIME   (1000 / FPS)
+#define PI           3.14159265358979323846
 
-#define PI 3.14159265358979323846
+#define MAP_W        20
+#define MAP_H        20
+#define MAX_COINS    25
+#define MAX_ENEMIES  6
 
-/* --- Renkler --- */
-#define COL_SKY      0x87CEEBFF
-#define COL_GROUND   0x4CAF50FF
-#define COL_WALL     0xE57373FF
-#define COL_PLAYER   0x42A5F5FF
-#define COL_COIN     0xFFD700FF
-#define COL_ENEMY    0xEF5350FF
-#define COL_UI_BG    0x1A1A2EDD
-#define COL_WHITE    0xFFFFFFFF
-#define COL_YELLOW   0xFFEB3BFF
-
-/* --- Harita --- */
+/* ===== HARİTA ===== */
 static int map[MAP_H][MAP_W] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1},
-    {1,0,0,1,0,1,0,0,0,0,0,0,1,0,0,1,0,0,0,1},
-    {1,0,0,1,0,0,0,0,1,1,0,0,0,0,0,1,0,0,0,1},
-    {1,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1},
-    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,0,0,1},
+    {1,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1},
+    {1,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,1},
     {1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1},
-    {1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1},
+    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1},
+    {1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1},
+    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     {1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1},
-    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-    {1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1},
-    {1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1},
-    {1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1},
-    {1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1},
-    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1},
     {1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1},
     {1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1},
+    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,0,1},
+    {1,0,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,0,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
 };
 
-/* --- Tipler --- */
+/* ===== TİPLER ===== */
+typedef struct { float r, g, b; } Color3;
+
 typedef struct {
-    double x, y;       /* dünya konumu */
-    double angle;      /* bakış açısı (radyan) */
+    double x, y, z;   /* pozisyon */
+    double yaw;        /* sol-sag bakis (radyan) */
+    double pitch;      /* yukari-asagi bakis */
     int health;
     int score;
-    double velX, velY;
-    int onGround;      /* 2D için kullanılmıyor, zıplama efekti */
 } Player;
 
 typedef struct {
-    double x, y;
-    int alive;
+    double x, y, z;
     int collected;
+    double spin;
 } Coin;
 
 typedef struct {
-    double x, y;
-    double angle;
+    double x, y, z;
     int alive;
-    double speed;
     int health;
+    double speed;
+    double spin;
 } Enemy;
 
-typedef enum {
-    STATE_MENU,
-    STATE_PLAYING,
-    STATE_GAMEOVER,
-    STATE_WIN
-} GameState;
+typedef enum { STATE_MENU, STATE_PLAYING, STATE_GAMEOVER, STATE_WIN } GameState;
 
-/* --- Yardımcı: renk çiz --- */
-static void set_color(SDL_Renderer *r, Uint32 col) {
-    SDL_SetRenderDrawColor(r,
-        (col >> 24) & 0xFF,
-        (col >> 16) & 0xFF,
-        (col >>  8) & 0xFF,
-        (col      ) & 0xFF);
-}
-
-/* --- Dikdörtgen çiz --- */
-static void fill_rect(SDL_Renderer *r, int x, int y, int w, int h, Uint32 col) {
-    set_color(r, col);
-    SDL_Rect rect = {x, y, w, h};
-    SDL_RenderFillRect(r, &rect);
-}
-
-/* --- Harita çarpışma --- */
+/* ===== YARDIMCI FONKSİYONLAR ===== */
 static int map_solid(int mx, int my) {
     if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H) return 1;
     return map[my][mx] == 1;
 }
 
-/* --- 2.5D Raycasting ile duvar çizimi --- */
-#define NUM_RAYS  SCREEN_W
-#define FOV       (PI / 3.0)   /* 60 derece */
-#define MAX_DIST  20.0
+/* ===== 3D KÜP ÇİZ ===== */
+static void draw_cube(double x, double y, double z,
+                      double sx, double sy, double sz,
+                      Color3 top, Color3 side, Color3 front) {
+    double x0 = x,       x1 = x + sx;
+    double y0 = y,       y1 = y + sy;
+    double z0 = z,       z1 = z + sz;
 
-static void draw_3d_view(SDL_Renderer *rend, Player *p) {
-    double ray_step = FOV / NUM_RAYS;
-    double ray_angle = p->angle - FOV / 2.0;
+    glBegin(GL_QUADS);
 
-    for (int col = 0; col < NUM_RAYS; col++) {
-        /* Ray direction */
-        double rdx = cos(ray_angle);
-        double rdy = sin(ray_angle);
+    /* ÜST yüz */
+    glColor3f(top.r, top.g, top.b);
+    glNormal3f(0, 1, 0);
+    glVertex3f(x0, y1, z0);
+    glVertex3f(x1, y1, z0);
+    glVertex3f(x1, y1, z1);
+    glVertex3f(x0, y1, z1);
 
-        /* DDA raycasting */
-        double px = p->x, py = p->y;
-        int mapX = (int)px, mapY = (int)py;
+    /* ALT yüz */
+    glColor3f(side.r * 0.5f, side.g * 0.5f, side.b * 0.5f);
+    glNormal3f(0, -1, 0);
+    glVertex3f(x0, y0, z0);
+    glVertex3f(x1, y0, z0);
+    glVertex3f(x1, y0, z1);
+    glVertex3f(x0, y0, z1);
 
-        double deltaX = fabs(1.0 / rdx);
-        double deltaY = fabs(1.0 / rdy);
+    /* ÖN yüz (z+) */
+    glColor3f(front.r, front.g, front.b);
+    glNormal3f(0, 0, 1);
+    glVertex3f(x0, y0, z1);
+    glVertex3f(x1, y0, z1);
+    glVertex3f(x1, y1, z1);
+    glVertex3f(x0, y1, z1);
 
-        double sideDistX, sideDistY;
-        int stepX, stepY;
-        int hit = 0, side = 0;
+    /* ARKA yüz (z-) */
+    glColor3f(side.r * 0.8f, side.g * 0.8f, side.b * 0.8f);
+    glNormal3f(0, 0, -1);
+    glVertex3f(x0, y0, z0);
+    glVertex3f(x1, y0, z0);
+    glVertex3f(x1, y1, z0);
+    glVertex3f(x0, y1, z0);
 
-        if (rdx < 0) { stepX = -1; sideDistX = (px - mapX) * deltaX; }
-        else          { stepX =  1; sideDistX = (mapX + 1.0 - px) * deltaX; }
-        if (rdy < 0) { stepY = -1; sideDistY = (py - mapY) * deltaY; }
-        else          { stepY =  1; sideDistY = (mapY + 1.0 - py) * deltaY; }
+    /* SAĞ yüz (x+) */
+    glColor3f(side.r * 0.7f, side.g * 0.7f, side.b * 0.7f);
+    glNormal3f(1, 0, 0);
+    glVertex3f(x1, y0, z0);
+    glVertex3f(x1, y0, z1);
+    glVertex3f(x1, y1, z1);
+    glVertex3f(x1, y1, z0);
 
-        double dist = 0;
-        for (int step = 0; step < 100 && !hit; step++) {
-            if (sideDistX < sideDistY) {
-                sideDistX += deltaX;
-                mapX += stepX;
-                side = 0;
-            } else {
-                sideDistY += deltaY;
-                mapY += stepY;
-                side = 1;
-            }
-            if (map_solid(mapX, mapY)) {
-                hit = 1;
-                dist = (side == 0)
-                    ? (mapX - px + (1 - stepX) / 2.0) / rdx
-                    : (mapY - py + (1 - stepY) / 2.0) / rdy;
-            }
-        }
+    /* SOL yüz (x-) */
+    glColor3f(side.r * 0.6f, side.g * 0.6f, side.b * 0.6f);
+    glNormal3f(-1, 0, 0);
+    glVertex3f(x0, y0, z0);
+    glVertex3f(x0, y0, z1);
+    glVertex3f(x0, y1, z1);
+    glVertex3f(x0, y1, z0);
 
-        /* Fish-eye düzeltme */
-        double corr = dist * cos(ray_angle - p->angle);
-        if (corr < 0.01) corr = 0.01;
-
-        int wall_h = (int)(SCREEN_H / corr);
-        int wall_top = (SCREEN_H - wall_h) / 2;
-        int wall_bot = wall_top + wall_h;
-
-        /* Duvar rengi (yan gölge) */
-        Uint32 wcol = side ? 0xB71C1CFF : 0xE53935FF;
-
-        /* Mesafeye göre karart */
-        double brightness = 1.0 - (dist / MAX_DIST) * 0.7;
-        if (brightness < 0.2) brightness = 0.2;
-        int wr = (int)(((wcol >> 24) & 0xFF) * brightness);
-        int wg = (int)(((wcol >> 16) & 0xFF) * brightness);
-        int wb = (int)(((wcol >>  8) & 0xFF) * brightness);
-
-        /* Zemin (alt yarı) */
-        SDL_SetRenderDrawColor(rend, 76, 175, 80, 255);
-        SDL_RenderDrawLine(rend, col, wall_bot, col, SCREEN_H);
-
-        /* Tavan (üst yarı) */
-        SDL_SetRenderDrawColor(rend, 135, 206, 235, 255);
-        SDL_RenderDrawLine(rend, col, 0, col, wall_top);
-
-        /* Duvar */
-        SDL_SetRenderDrawColor(rend, wr, wg, wb, 255);
-        SDL_RenderDrawLine(rend, col, wall_top, col, wall_bot);
-
-        ray_angle += ray_step;
-    }
+    glEnd();
 }
 
-/* --- 2D minimap --- */
-static void draw_minimap(SDL_Renderer *rend, Player *p, Coin *coins, Enemy *enemies) {
-    int ox = SCREEN_W - MAP_W * 5 - 10;
-    int oy = 10;
-    int ts = 5;
-
-    /* Harita arkaplanı */
-    fill_rect(rend, ox - 2, oy - 2, MAP_W * ts + 4, MAP_H * ts + 4, 0x000000AA);
-
-    for (int y = 0; y < MAP_H; y++) {
+/* ===== ZEMİN ÇİZ ===== */
+static void draw_floor(void) {
+    int tile = 0;
+    glBegin(GL_QUADS);
+    for (int z = 0; z < MAP_H; z++) {
         for (int x = 0; x < MAP_W; x++) {
-            Uint32 c = map[y][x] ? 0x880000FF : 0x333333FF;
-            fill_rect(rend, ox + x * ts, oy + y * ts, ts - 1, ts - 1, c);
+            tile = (x + z) % 2;
+            if (tile == 0)
+                glColor3f(0.35f, 0.65f, 0.30f);
+            else
+                glColor3f(0.30f, 0.58f, 0.25f);
+            glNormal3f(0, 1, 0);
+            glVertex3f((float)x,     0.0f, (float)z);
+            glVertex3f((float)x+1.f, 0.0f, (float)z);
+            glVertex3f((float)x+1.f, 0.0f, (float)z+1.f);
+            glVertex3f((float)x,     0.0f, (float)z+1.f);
         }
     }
+    glEnd();
+}
 
-    /* Coinler */
+/* ===== HARİTA DUVARLARI ===== */
+static void draw_map(void) {
+    /* Duvar renkleri - Roblox tarzı parlak renkler */
+    Color3 wall_colors[] = {
+        {0.85f, 0.25f, 0.25f},  /* kırmızı */
+        {0.25f, 0.55f, 0.85f},  /* mavi */
+        {0.85f, 0.65f, 0.20f},  /* sarı */
+        {0.35f, 0.75f, 0.35f},  /* yeşil */
+        {0.70f, 0.30f, 0.80f},  /* mor */
+    };
+
+    for (int z = 0; z < MAP_H; z++) {
+        for (int x = 0; x < MAP_W; x++) {
+            if (!map[z][x]) continue;
+            int ci = (x * 3 + z * 7) % 5;
+            Color3 c = wall_colors[ci];
+            Color3 top = {c.r * 1.2f > 1 ? 1 : c.r * 1.2f,
+                          c.g * 1.2f > 1 ? 1 : c.g * 1.2f,
+                          c.b * 1.2f > 1 ? 1 : c.b * 1.2f};
+            draw_cube((double)x, 0.0, (double)z,
+                      1.0, 2.0, 1.0,
+                      top, c, c);
+        }
+    }
+}
+
+/* ===== COİN ÇİZ ===== */
+static void draw_coins(Coin *coins) {
+    Color3 gold_top  = {1.0f, 0.95f, 0.2f};
+    Color3 gold_side = {1.0f, 0.75f, 0.0f};
+
     for (int i = 0; i < MAX_COINS; i++) {
-        if (coins[i].alive && !coins[i].collected) {
-            int cx = ox + (int)(coins[i].x * ts);
-            int cy = oy + (int)(coins[i].y * ts);
-            fill_rect(rend, cx, cy, ts, ts, COL_COIN);
-        }
-    }
+        if (coins[i].collected) continue;
+        coins[i].spin += 0.03;
 
-    /* Düşmanlar */
+        glPushMatrix();
+        glTranslatef((float)coins[i].x + 0.5f,
+                     (float)coins[i].y,
+                     (float)coins[i].z + 0.5f);
+        glRotatef((float)(coins[i].spin * 180.0 / PI), 0, 1, 0);
+        /* Hafif yukarı aşağı sallanma */
+        float bob = (float)(sin(coins[i].spin * 2.0) * 0.15);
+        glTranslatef(0, bob, 0);
+        glScalef(0.4f, 0.4f, 0.4f);
+        glTranslatef(-0.5f, 0, -0.5f);
+        draw_cube(0, 0, 0, 1, 1, 1, gold_top, gold_side, gold_side);
+        glPopMatrix();
+    }
+}
+
+/* ===== DÜŞMAN ÇİZ ===== */
+static void draw_enemies(Enemy *enemies) {
+    Color3 red_top  = {1.0f, 0.2f, 0.2f};
+    Color3 red_side = {0.8f, 0.1f, 0.1f};
+    Color3 eye      = {1.0f, 1.0f, 1.0f};
+    Color3 pupil    = {0.0f, 0.0f, 0.0f};
+
     for (int i = 0; i < MAX_ENEMIES; i++) {
-        if (enemies[i].alive) {
-            int ex = ox + (int)(enemies[i].x * ts);
-            int ey = oy + (int)(enemies[i].y * ts);
-            fill_rect(rend, ex, ey, ts, ts, COL_ENEMY);
-        }
+        if (!enemies[i].alive) continue;
+        enemies[i].spin += 0.02;
+
+        glPushMatrix();
+        glTranslatef((float)enemies[i].x,
+                     0.0f,
+                     (float)enemies[i].z);
+        glRotatef((float)(enemies[i].spin * 180.0 / PI), 0, 1, 0);
+
+        /* Gövde */
+        draw_cube(-0.4f, 0, -0.4f, 0.8f, 1.4f, 0.8f, red_top, red_side, red_side);
+
+        /* Baş */
+        draw_cube(-0.35f, 1.4f, -0.35f, 0.7f, 0.7f, 0.7f, red_top, red_side, red_side);
+
+        /* Gözler */
+        draw_cube(-0.2f, 1.75f, 0.35f, 0.15f, 0.15f, 0.05f, eye, eye, eye);
+        draw_cube( 0.05f, 1.75f, 0.35f, 0.15f, 0.15f, 0.05f, eye, eye, eye);
+
+        /* Göz bebekleri */
+        draw_cube(-0.16f, 1.77f, 0.40f, 0.07f, 0.07f, 0.05f, pupil, pupil, pupil);
+        draw_cube( 0.09f, 1.77f, 0.40f, 0.07f, 0.07f, 0.05f, pupil, pupil, pupil);
+
+        glPopMatrix();
     }
-
-    /* Oyuncu */
-    int px = ox + (int)(p->x * ts);
-    int py = oy + (int)(p->y * ts);
-    fill_rect(rend, px - 2, py - 2, ts + 1, ts + 1, COL_PLAYER);
-
-    /* Yön oku */
-    SDL_SetRenderDrawColor(rend, 255, 255, 0, 255);
-    SDL_RenderDrawLine(rend, px, py,
-        px + (int)(cos(p->angle) * 8),
-        py + (int)(sin(p->angle) * 8));
 }
 
-/* --- Sprite (coin/düşman) ekranda çiz --- */
-static void draw_sprite(SDL_Renderer *rend, Player *p,
-                         double sx, double sy, Uint32 col, int size_base) {
-    double dx = sx - p->x;
-    double dy = sy - p->y;
-    double dist = sqrt(dx * dx + dy * dy);
-    if (dist < 0.1) return;
+/* ===== GÖKYÜZÜ ÇİZ ===== */
+static void draw_sky(void) {
+    /* Gökyüzü gradient */
+    glDisable(GL_DEPTH_TEST);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(-1, 1, -1, 1, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
 
-    /* Açı farkı */
-    double angle_to = atan2(dy, dx);
-    double rel = angle_to - p->angle;
+    glBegin(GL_QUADS);
+    glColor3f(0.40f, 0.70f, 1.0f);
+    glVertex2f(-1,  1);
+    glVertex2f( 1,  1);
+    glColor3f(0.65f, 0.85f, 1.0f);
+    glVertex2f( 1, -1);
+    glVertex2f(-1, -1);
+    glEnd();
 
-    /* Normalize [-PI, PI] */
-    while (rel >  PI) rel -= 2 * PI;
-    while (rel < -PI) rel += 2 * PI;
-
-    /* FOV dışındaysa çizme */
-    if (fabs(rel) > FOV * 0.7) return;
-
-    int screen_x = (int)((rel / FOV + 0.5) * SCREEN_W);
-    int sprite_h = (int)(size_base / dist * SCREEN_H * 0.5);
-    if (sprite_h < 4) return;
-    if (sprite_h > SCREEN_H) sprite_h = SCREEN_H;
-
-    int sprite_top = (SCREEN_H - sprite_h) / 2;
-
-    /* Parlaklık */
-    double br = 1.0 - dist / MAX_DIST * 0.8;
-    if (br < 0.2) br = 0.2;
-    int sr = (int)(((col >> 24) & 0xFF) * br);
-    int sg = (int)(((col >> 16) & 0xFF) * br);
-    int sb = (int)(((col >>  8) & 0xFF) * br);
-
-    SDL_SetRenderDrawColor(rend, sr, sg, sb, 255);
-    SDL_Rect rect = {screen_x - sprite_h / 2, sprite_top, sprite_h, sprite_h};
-    SDL_RenderFillRect(rend, &rect);
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glEnable(GL_DEPTH_TEST);
 }
 
-/* --- HUD (skor, sağlık) --- */
-static void draw_hud(SDL_Renderer *rend, Player *p, int coins_left) {
-    /* Üst bar arkaplanı */
-    fill_rect(rend, 0, 0, SCREEN_W, 40, 0x00000099);
+/* ===== 2D HUD ===== */
+static void draw_hud_2d(Player *p, int coins_left, int total_coins) {
+    /* 2D moduna geç */
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, SCREEN_W, SCREEN_H, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
 
-    /* Sağlık barı */
-    fill_rect(rend, 10, 10, 200, 20, 0xFF000099);
-    fill_rect(rend, 10, 10, p->health * 2, 20, 0x4CAF50FF);
+    /* Üst bar */
+    glColor4f(0, 0, 0, 0.5f);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBegin(GL_QUADS);
+    glVertex2f(0, 0); glVertex2f(SCREEN_W, 0);
+    glVertex2f(SCREEN_W, 45); glVertex2f(0, 45);
+    glEnd();
+    glDisable(GL_BLEND);
 
-    /* Skor göstergesi (büyük sarı bloklar) */
-    /* Sayıları piksel bloklarla çiz */
-    char buf[64];
-    snprintf(buf, sizeof(buf), "SKOR: %d  COIN: %d  HP: %d",
-             p->score, coins_left, p->health);
+    /* HP barı */
+    glColor3f(0.2f, 0.2f, 0.2f);
+    glBegin(GL_QUADS);
+    glVertex2f(10, 10); glVertex2f(210, 10);
+    glVertex2f(210, 30); glVertex2f(10, 30);
+    glEnd();
 
-    /* SDL_ttf olmadan basit gösterim: renkli bar + boyut */
-    int score_w = (int)(p->score * 1.5);
-    if (score_w > 300) score_w = 300;
-    fill_rect(rend, 220, 10, score_w, 20, COL_COIN);
+    float hp_frac = p->health / 100.0f;
+    glColor3f(0.1f + (1-hp_frac)*0.8f, hp_frac * 0.8f, 0.1f);
+    glBegin(GL_QUADS);
+    glVertex2f(10, 10); glVertex2f(10 + 200*hp_frac, 10);
+    glVertex2f(10 + 200*hp_frac, 30); glVertex2f(10, 30);
+    glEnd();
+
+    /* Coin göstergesi */
+    glColor3f(1.0f, 0.85f, 0.0f);
+    glBegin(GL_QUADS);
+    glVertex2f(220, 10); glVertex2f(220 + coins_left * 8, 10);
+    glVertex2f(220 + coins_left * 8, 30); glVertex2f(220, 30);
+    glEnd();
+
+    /* Skor barı */
+    glColor3f(0.3f, 0.6f, 1.0f);
+    int sw = p->score > 400 ? 400 : p->score;
+    glBegin(GL_QUADS);
+    glVertex2f(430, 10); glVertex2f(430 + sw, 10);
+    glVertex2f(430 + sw, 30); glVertex2f(430, 30);
+    glEnd();
 
     /* Crosshair */
     int cx = SCREEN_W / 2, cy = SCREEN_H / 2;
-    SDL_SetRenderDrawColor(rend, 255, 255, 255, 200);
-    SDL_RenderDrawLine(rend, cx - 10, cy, cx + 10, cy);
-    SDL_RenderDrawLine(rend, cx, cy - 10, cx, cy + 10);
+    glColor3f(1, 1, 1);
+    glLineWidth(2.0f);
+    glBegin(GL_LINES);
+    glVertex2f(cx - 12, cy); glVertex2f(cx + 12, cy);
+    glVertex2f(cx, cy - 12); glVertex2f(cx, cy + 12);
+    glEnd();
+    /* Crosshair iç nokta */
+    glPointSize(4.0f);
+    glBegin(GL_POINTS);
+    glVertex2f(cx, cy);
+    glEnd();
 
-    /* WASD ipucu */
-    fill_rect(rend, 10, SCREEN_H - 90, 180, 80, 0x000000AA);
-    /* W tuşu */
-    fill_rect(rend, 65, SCREEN_H - 85, 30, 25, 0x555555FF);
-    fill_rect(rend, 68, SCREEN_H - 82, 24, 19, 0x777777FF);
-    /* A S D tuşları */
-    fill_rect(rend, 15, SCREEN_H - 55, 30, 25, 0x555555FF);
-    fill_rect(rend, 65, SCREEN_H - 55, 30, 25, 0x555555FF);
-    fill_rect(rend, 115, SCREEN_H - 55, 30, 25, 0x555555FF);
-    fill_rect(rend, 18, SCREEN_H - 52, 24, 19, 0x777777FF);
-    fill_rect(rend, 68, SCREEN_H - 52, 24, 19, 0x777777FF);
-    fill_rect(rend, 118, SCREEN_H - 52, 24, 19, 0x777777FF);
+    /* Alt sol ipucu */
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0, 0, 0, 0.5f);
+    glBegin(GL_QUADS);
+    glVertex2f(5, SCREEN_H - 90);
+    glVertex2f(215, SCREEN_H - 90);
+    glVertex2f(215, SCREEN_H - 5);
+    glVertex2f(5, SCREEN_H - 5);
+    glEnd();
+    glDisable(GL_BLEND);
 
-    /* Sol/sağ ok: fare ile bak */
-    fill_rect(rend, 200, SCREEN_H - 60, 120, 30, 0x000000AA);
-    fill_rect(rend, 205, SCREEN_H - 55, 110, 20, 0x333399FF);
-}
-
-/* --- Menü --- */
-static void draw_menu(SDL_Renderer *rend, int frame) {
-    /* Arkaplan gradyan efekti */
-    for (int y = 0; y < SCREEN_H; y++) {
-        int r = 20 + y / 5;
-        int g = 20 + y / 10;
-        int b = 60 + y / 4;
-        SDL_SetRenderDrawColor(rend, r, g, b, 255);
-        SDL_RenderDrawLine(rend, 0, y, SCREEN_W, y);
+    /* WASD tuşları görsel */
+    float keys[][4] = {
+        {70, SCREEN_H-85, 30, 22},   /* W */
+        {35, SCREEN_H-58, 30, 22},   /* A */
+        {70, SCREEN_H-58, 30, 22},   /* S */
+        {105, SCREEN_H-58, 30, 22},  /* D */
+    };
+    for (int i = 0; i < 4; i++) {
+        glColor3f(0.4f, 0.4f, 0.6f);
+        glBegin(GL_QUADS);
+        glVertex2f(keys[i][0], keys[i][1]);
+        glVertex2f(keys[i][0]+keys[i][2], keys[i][1]);
+        glVertex2f(keys[i][0]+keys[i][2], keys[i][1]+keys[i][3]);
+        glVertex2f(keys[i][0], keys[i][1]+keys[i][3]);
+        glEnd();
+        glColor3f(0.6f, 0.6f, 0.8f);
+        glBegin(GL_QUADS);
+        glVertex2f(keys[i][0]+2, keys[i][1]+2);
+        glVertex2f(keys[i][0]+keys[i][2]-2, keys[i][1]+2);
+        glVertex2f(keys[i][0]+keys[i][2]-2, keys[i][1]+keys[i][3]-4);
+        glVertex2f(keys[i][0]+2, keys[i][1]+keys[i][3]-4);
+        glEnd();
     }
 
-    /* Başlık bloğu */
-    int tx = SCREEN_W / 2 - 200;
-    int ty = 80 + (int)(sin(frame * 0.05) * 10);
-    fill_rect(rend, tx, ty, 400, 80, 0xFF4444FF);
-    fill_rect(rend, tx + 5, ty + 5, 390, 70, 0xFF6666FF);
+    /* Fare ipucu */
+    glColor3f(0.3f, 0.5f, 0.8f);
+    glBegin(GL_QUADS);
+    glVertex2f(145, SCREEN_H - 80);
+    glVertex2f(205, SCREEN_H - 80);
+    glVertex2f(205, SCREEN_H - 15);
+    glVertex2f(145, SCREEN_H - 15);
+    glEnd();
 
-    /* "ROBLOX TARZLI OYUN" yazı bloğu gösterimi */
-    fill_rect(rend, tx + 20, ty + 20, 360, 12, COL_WHITE);
-    fill_rect(rend, tx + 40, ty + 40, 280, 10, COL_YELLOW);
+    /* F tuşu - ateş */
+    glColor3f(0.8f, 0.3f, 0.3f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W-60, SCREEN_H-45);
+    glVertex2f(SCREEN_W-10, SCREEN_H-45);
+    glVertex2f(SCREEN_W-10, SCREEN_H-10);
+    glVertex2f(SCREEN_W-60, SCREEN_H-10);
+    glEnd();
 
-    /* Blok dekorasyonları */
-    Uint32 block_colors[] = {
-        0xFF4444FF, 0x44FF44FF, 0x4444FFFF,
-        0xFFFF44FF, 0xFF44FFFF, 0x44FFFFFF
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glEnable(GL_DEPTH_TEST);
+}
+
+/* ===== MENÜ ÇİZ ===== */
+static void draw_menu_3d(int frame) {
+    glClearColor(0.05f, 0.05f, 0.15f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glDisable(GL_DEPTH_TEST);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, SCREEN_W, SCREEN_H, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    /* Arkaplan gradyanı */
+    glBegin(GL_QUADS);
+    glColor3f(0.05f, 0.05f, 0.20f); glVertex2f(0, 0);
+    glColor3f(0.05f, 0.05f, 0.20f); glVertex2f(SCREEN_W, 0);
+    glColor3f(0.10f, 0.05f, 0.30f); glVertex2f(SCREEN_W, SCREEN_H);
+    glColor3f(0.10f, 0.05f, 0.30f); glVertex2f(0, SCREEN_H);
+    glEnd();
+
+    /* Animasyonlu Roblox-tarzı bloklar */
+    float block_cols[][3] = {
+        {0.9f,0.2f,0.2f},{0.2f,0.6f,0.9f},{0.9f,0.75f,0.1f},
+        {0.2f,0.8f,0.3f},{0.75f,0.2f,0.9f},{0.9f,0.5f,0.1f}
     };
     for (int i = 0; i < 6; i++) {
-        int bx = 80 + i * 130 + (int)(sin(frame * 0.03 + i) * 15);
-        int by = 200 + (int)(cos(frame * 0.04 + i * 0.5) * 20);
-        fill_rect(rend, bx, by, 50, 50, block_colors[i]);
-        fill_rect(rend, bx + 5, by + 5, 40, 40,
-            block_colors[(i + 1) % 6]);
+        float bx = 80.f + i * 145.f;
+        float by = 380.f + (float)sin(frame * 0.04 + i) * 25.f;
+        float *bc = block_cols[i];
+        float rot = (float)(frame * 0.8 + i * 60);
+        /* Basit dönen kare simüle et */
+        float bs = 55.f + (float)sin(frame * 0.05 + i) * 8.f;
+        glColor3f(bc[0]*0.7f, bc[1]*0.7f, bc[2]*0.7f);
+        glBegin(GL_QUADS);
+        glVertex2f(bx, by); glVertex2f(bx+bs, by);
+        glVertex2f(bx+bs, by+bs); glVertex2f(bx, by+bs);
+        glEnd();
+        glColor3f(bc[0], bc[1], bc[2]);
+        float pad = bs * 0.1f;
+        glBegin(GL_QUADS);
+        glVertex2f(bx+pad, by+pad);
+        glVertex2f(bx+bs-pad, by+pad);
+        glVertex2f(bx+bs-pad, by+bs-pad*2);
+        glVertex2f(bx+pad, by+bs-pad*2);
+        glEnd();
+        /* Üst yüz vurgu */
+        glColor3f(bc[0]*1.3f>1?1:bc[0]*1.3f,
+                  bc[1]*1.3f>1?1:bc[1]*1.3f,
+                  bc[2]*1.3f>1?1:bc[2]*1.3f);
+        glBegin(GL_QUADS);
+        glVertex2f(bx+pad, by+pad);
+        glVertex2f(bx+bs-pad, by+pad);
+        glVertex2f(bx+bs-pad, by+pad+8);
+        glVertex2f(bx+pad, by+pad+8);
+        glEnd();
+        (void)rot;
     }
 
-    /* BAŞLA düğmesi */
-    int btn_pulse = (int)(sin(frame * 0.1) * 10);
-    fill_rect(rend, SCREEN_W / 2 - 120 - btn_pulse,
-              350, 240 + btn_pulse * 2, 60, 0x00AA00FF);
-    fill_rect(rend, SCREEN_W / 2 - 110 - btn_pulse,
-              360, 220 + btn_pulse * 2, 40, 0x00CC00FF);
+    /* Başlık kutusu */
+    float ty = 80.f + (float)sin(frame * 0.04) * 8.f;
+    glColor3f(0.85f, 0.15f, 0.15f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-240.f, ty);
+    glVertex2f(SCREEN_W/2+240.f, ty);
+    glVertex2f(SCREEN_W/2+240.f, ty+90.f);
+    glVertex2f(SCREEN_W/2-240.f, ty+90.f);
+    glEnd();
+    glColor3f(1.0f, 0.35f, 0.35f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-230.f, ty+8.f);
+    glVertex2f(SCREEN_W/2+230.f, ty+8.f);
+    glVertex2f(SCREEN_W/2+230.f, ty+72.f);
+    glVertex2f(SCREEN_W/2-230.f, ty+72.f);
+    glEnd();
+    /* "ROBLOX TARZLI OYUN" metin çubuğu */
+    glColor3f(1,1,1);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-200.f, ty+20.f);
+    glVertex2f(SCREEN_W/2+200.f, ty+20.f);
+    glVertex2f(SCREEN_W/2+200.f, ty+35.f);
+    glVertex2f(SCREEN_W/2-200.f, ty+35.f);
+    glEnd();
+    glColor3f(1.0f, 0.9f, 0.0f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-150.f, ty+45.f);
+    glVertex2f(SCREEN_W/2+150.f, ty+45.f);
+    glVertex2f(SCREEN_W/2+150.f, ty+58.f);
+    glVertex2f(SCREEN_W/2-150.f, ty+58.f);
+    glEnd();
 
-    /* Kontroller bilgisi */
-    fill_rect(rend, SCREEN_W / 2 - 180, 440, 360, 100, 0x000000AA);
-    fill_rect(rend, SCREEN_W / 2 - 170, 450, 340, 80, 0x111133AA);
+    /* Alt bilgi kutusu */
+    glColor3f(0.15f, 0.15f, 0.35f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-220.f, 490.f);
+    glVertex2f(SCREEN_W/2+220.f, 490.f);
+    glVertex2f(SCREEN_W/2+220.f, 590.f);
+    glVertex2f(SCREEN_W/2-220.f, 590.f);
+    glEnd();
 
-    /* Kontrol ikonları */
-    fill_rect(rend, SCREEN_W / 2 - 140, 460, 60, 20, 0x4444AAFF);
-    fill_rect(rend, SCREEN_W / 2 - 70, 460, 80, 20, 0x4444AAFF);
-    fill_rect(rend, SCREEN_W / 2 + 20, 460, 100, 20, 0x4444AAFF);
-    fill_rect(rend, SCREEN_W / 2 - 140, 490, 280, 15, 0x555555FF);
-    fill_rect(rend, SCREEN_W / 2 - 140, 510, 200, 15, 0x555555FF);
-}
+    /* BAŞLA butonu */
+    float pulse = (float)sin(frame * 0.12) * 12.f;
+    glColor3f(0.1f, 0.75f, 0.1f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-130.f-pulse, 290.f);
+    glVertex2f(SCREEN_W/2+130.f+pulse, 290.f);
+    glVertex2f(SCREEN_W/2+130.f+pulse, 355.f);
+    glVertex2f(SCREEN_W/2-130.f-pulse, 355.f);
+    glEnd();
+    glColor3f(0.15f, 0.90f, 0.15f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-118.f-pulse, 302.f);
+    glVertex2f(SCREEN_W/2+118.f+pulse, 302.f);
+    glVertex2f(SCREEN_W/2+118.f+pulse, 343.f);
+    glVertex2f(SCREEN_W/2-118.f-pulse, 343.f);
+    glEnd();
+    glColor3f(1,1,1);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-80.f, 318.f);
+    glVertex2f(SCREEN_W/2+80.f, 318.f);
+    glVertex2f(SCREEN_W/2+80.f, 328.f);
+    glVertex2f(SCREEN_W/2-80.f, 328.f);
+    glEnd();
 
-/* --- Oyun bitti --- */
-static void draw_gameover(SDL_Renderer *rend, Player *p) {
-    fill_rect(rend, 0, 0, SCREEN_W, SCREEN_H, 0x8B0000CC);
-    fill_rect(rend, SCREEN_W / 2 - 200, SCREEN_H / 2 - 80,
-              400, 160, 0x330000FF);
-    fill_rect(rend, SCREEN_W / 2 - 190, SCREEN_H / 2 - 70,
-              380, 60, 0x660000FF);
-    /* Skor çubuğu */
-    fill_rect(rend, SCREEN_W / 2 - 100, SCREEN_H / 2 + 10,
-              p->score * 2 > 200 ? 200 : p->score * 2, 20, COL_YELLOW);
-    fill_rect(rend, SCREEN_W / 2 - 190, SCREEN_H / 2 + 50,
-              380, 30, 0x994444FF);
-}
-
-/* --- Kazandın --- */
-static void draw_win(SDL_Renderer *rend, Player *p, int frame) {
-    for (int y = 0; y < SCREEN_H; y++) {
-        int g = 100 + y / 4 + (int)(sin(frame * 0.05 + y * 0.01) * 30);
-        SDL_SetRenderDrawColor(rend, 20, g > 255 ? 255 : g, 60, 255);
-        SDL_RenderDrawLine(rend, 0, y, SCREEN_W, y);
+    /* Kontrol açıklaması çubukları */
+    float desc_y = 505.f;
+    float desc_colors[][3] = {{0.6f,0.6f,0.9f},{0.9f,0.9f,0.3f},{0.9f,0.4f,0.4f}};
+    for (int i = 0; i < 3; i++) {
+        glColor3f(desc_colors[i][0], desc_colors[i][1], desc_colors[i][2]);
+        glBegin(GL_QUADS);
+        glVertex2f(SCREEN_W/2-200.f, desc_y + i*25.f);
+        glVertex2f(SCREEN_W/2+200.f, desc_y + i*25.f);
+        glVertex2f(SCREEN_W/2+200.f, desc_y + i*25.f + 16.f);
+        glVertex2f(SCREEN_W/2-200.f, desc_y + i*25.f + 16.f);
+        glEnd();
     }
-    fill_rect(rend, SCREEN_W / 2 - 200, SCREEN_H / 2 - 80,
-              400, 160, 0x00440088);
-    fill_rect(rend, SCREEN_W / 2 - 190, SCREEN_H / 2 - 70,
-              380, 60, 0x00880088);
+
+    glEnable(GL_DEPTH_TEST);
+}
+
+/* ===== OYUN BİTTİ ===== */
+static void draw_gameover_2d(Player *p) {
+    glDisable(GL_DEPTH_TEST);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, SCREEN_W, SCREEN_H, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.5f, 0.0f, 0.0f, 0.75f);
+    glBegin(GL_QUADS);
+    glVertex2f(0, 0); glVertex2f(SCREEN_W, 0);
+    glVertex2f(SCREEN_W, SCREEN_H); glVertex2f(0, SCREEN_H);
+    glEnd();
+    glDisable(GL_BLEND);
+
+    glColor3f(0.8f, 0.0f, 0.0f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-220.f, SCREEN_H/2-70.f);
+    glVertex2f(SCREEN_W/2+220.f, SCREEN_H/2-70.f);
+    glVertex2f(SCREEN_W/2+220.f, SCREEN_H/2+80.f);
+    glVertex2f(SCREEN_W/2-220.f, SCREEN_H/2+80.f);
+    glEnd();
+    glColor3f(1.f, 0.3f, 0.3f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2-55.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2-55.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2-20.f);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2-20.f);
+    glEnd();
+
+    int sw = p->score; if (sw > 350) sw = 350;
+    glColor3f(1.f, 0.85f, 0.f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-175.f, SCREEN_H/2+5.f);
+    glVertex2f(SCREEN_W/2-175.f+sw, SCREEN_H/2+5.f);
+    glVertex2f(SCREEN_W/2-175.f+sw, SCREEN_H/2+25.f);
+    glVertex2f(SCREEN_W/2-175.f, SCREEN_H/2+25.f);
+    glEnd();
+
+    glColor3f(0.7f, 0.3f, 0.7f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2+40.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2+40.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2+60.f);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2+60.f);
+    glEnd();
+
+    glMatrixMode(GL_PROJECTION); glPopMatrix();
+    glMatrixMode(GL_MODELVIEW); glPopMatrix();
+    glEnable(GL_DEPTH_TEST);
+}
+
+/* ===== KAZANDIN ===== */
+static void draw_win_2d(Player *p, int frame) {
+    glDisable(GL_DEPTH_TEST);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, SCREEN_W, SCREEN_H, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.0f, 0.4f, 0.0f, 0.75f);
+    glBegin(GL_QUADS);
+    glVertex2f(0,0); glVertex2f(SCREEN_W,0);
+    glVertex2f(SCREEN_W,SCREEN_H); glVertex2f(0,SCREEN_H);
+    glEnd();
+    glDisable(GL_BLEND);
+
     /* Kutlama blokları */
-    for (int i = 0; i < 10; i++) {
-        int bx = (int)(rand() % SCREEN_W);
-        int by = (int)(sin(frame * 0.1 + i) * SCREEN_H / 2 + SCREEN_H / 2);
-        fill_rect(rend, bx, by, 20, 20,
-            (Uint32)(rand() | 0xFF));
+    srand(frame / 5);
+    for (int i = 0; i < 12; i++) {
+        float bx = (float)(rand() % SCREEN_W);
+        float by = (float)(rand() % SCREEN_H);
+        float r = (float)(rand()%100)/100.f;
+        float g = (float)(rand()%100)/100.f;
+        float b2 = (float)(rand()%100)/100.f;
+        glColor3f(r, g, b2);
+        glBegin(GL_QUADS);
+        glVertex2f(bx, by); glVertex2f(bx+25, by);
+        glVertex2f(bx+25, by+25); glVertex2f(bx, by+25);
+        glEnd();
     }
-    fill_rect(rend, SCREEN_W / 2 - 100, SCREEN_H / 2 + 10,
-              (p->score * 2 > 200 ? 200 : p->score * 2), 20, COL_COIN);
+
+    glColor3f(0.1f, 0.7f, 0.1f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-220.f, SCREEN_H/2-70.f);
+    glVertex2f(SCREEN_W/2+220.f, SCREEN_H/2-70.f);
+    glVertex2f(SCREEN_W/2+220.f, SCREEN_H/2+80.f);
+    glVertex2f(SCREEN_W/2-220.f, SCREEN_H/2+80.f);
+    glEnd();
+    glColor3f(0.3f, 1.f, 0.3f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2-55.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2-55.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2-20.f);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2-20.f);
+    glEnd();
+
+    int sw = p->score; if (sw > 350) sw = 350;
+    glColor3f(1.f, 0.85f, 0.f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-175.f, SCREEN_H/2+5.f);
+    glVertex2f(SCREEN_W/2-175.f+sw, SCREEN_H/2+5.f);
+    glVertex2f(SCREEN_W/2-175.f+sw, SCREEN_H/2+30.f);
+    glVertex2f(SCREEN_W/2-175.f, SCREEN_H/2+30.f);
+    glEnd();
+
+    glColor3f(1.f, 1.f, 0.3f);
+    glBegin(GL_QUADS);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2+45.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2+45.f);
+    glVertex2f(SCREEN_W/2+200.f, SCREEN_H/2+65.f);
+    glVertex2f(SCREEN_W/2-200.f, SCREEN_H/2+65.f);
+    glEnd();
+
+    glMatrixMode(GL_PROJECTION); glPopMatrix();
+    glMatrixMode(GL_MODELVIEW); glPopMatrix();
+    glEnable(GL_DEPTH_TEST);
 }
 
-/* --- Coin toplama kontrolü --- */
+/* ===== HAREKET ===== */
+static void move_player(Player *p, const Uint8 *keys, double dt) {
+    double speed = 4.5 * dt;
+    double turn  = 2.2 * dt;
+
+    if (keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_Q]) p->yaw -= turn;
+    if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_E]) p->yaw += turn;
+
+    double dx = 0, dz = 0;
+    if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) {
+        dx += sin(p->yaw) * speed;
+        dz -= cos(p->yaw) * speed;
+    }
+    if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) {
+        dx -= sin(p->yaw) * speed;
+        dz += cos(p->yaw) * speed;
+    }
+    if (keys[SDL_SCANCODE_A]) {
+        dx -= cos(p->yaw) * speed;
+        dz -= sin(p->yaw) * speed;
+    }
+    if (keys[SDL_SCANCODE_D]) {
+        dx += cos(p->yaw) * speed;
+        dz += sin(p->yaw) * speed;
+    }
+
+    double r = 0.3;
+    double nx = p->x + dx, nz = p->z + dz;
+    if (!map_solid((int)(nx + r), (int)p->z) &&
+        !map_solid((int)(nx - r), (int)p->z))
+        p->x = nx;
+    if (!map_solid((int)p->x, (int)(nz + r)) &&
+        !map_solid((int)p->x, (int)(nz - r)))
+        p->z = nz;
+}
+
+/* ===== DÜŞMAN GÜNCELLE ===== */
+static void update_enemies(Enemy *enemies, Player *p, double dt) {
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        if (!enemies[i].alive) continue;
+        double dx = p->x - enemies[i].x;
+        double dz = p->z - enemies[i].z;
+        double dist = sqrt(dx*dx + dz*dz);
+        if (dist < 0.1) continue;
+        double nx = enemies[i].x + (dx/dist) * enemies[i].speed * dt * 60.0;
+        double nz = enemies[i].z + (dz/dist) * enemies[i].speed * dt * 60.0;
+        if (!map_solid((int)nx, (int)enemies[i].z)) enemies[i].x = nx;
+        if (!map_solid((int)enemies[i].x, (int)nz)) enemies[i].z = nz;
+        if (dist < 0.6) p->health -= (int)(dt * 15.0);
+        if (p->health < 0) p->health = 0;
+    }
+}
+
+/* ===== COİN KONTROL ===== */
 static void check_coins(Player *p, Coin *coins) {
     for (int i = 0; i < MAX_COINS; i++) {
-        if (!coins[i].alive || coins[i].collected) continue;
-        double dx = coins[i].x - p->x;
-        double dy = coins[i].y - p->y;
-        if (dx * dx + dy * dy < 0.3 * 0.3) {
+        if (coins[i].collected) continue;
+        double dx = coins[i].x + 0.5 - p->x;
+        double dz = coins[i].z + 0.5 - p->z;
+        if (dx*dx + dz*dz < 0.35*0.35) {
             coins[i].collected = 1;
             p->score += 10;
         }
     }
 }
 
-/* --- Düşman hareketi --- */
-static void update_enemies(Enemy *enemies, Player *p) {
+/* ===== ATEŞ ET ===== */
+static void shoot(Player *p, Enemy *enemies) {
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (!enemies[i].alive) continue;
-        double dx = p->x - enemies[i].x;
-        double dy = p->y - enemies[i].y;
-        double dist = sqrt(dx * dx + dy * dy);
-        if (dist < 0.1) continue;
-
-        /* Oyuncuya doğru yürü */
-        double nx = dx / dist * enemies[i].speed;
-        double ny = dy / dist * enemies[i].speed;
-
-        double newX = enemies[i].x + nx;
-        double newY = enemies[i].y + ny;
-
-        /* Duvar çarpışması */
-        int mx = (int)newX, my = (int)newY;
-        if (!map_solid(mx, (int)enemies[i].y)) enemies[i].x = newX;
-        if (!map_solid((int)enemies[i].x, my)) enemies[i].y = newY;
-
-        enemies[i].angle = atan2(dy, dx);
-
-        /* Oyuncuya çarptı mı? */
-        if (dist < 0.5) {
-            p->health -= 1;
+        double dx = enemies[i].x - p->x;
+        double dz = enemies[i].z - p->z;
+        double dist = sqrt(dx*dx + dz*dz);
+        if (dist > 5.0) continue;
+        double angle = atan2(dx, -dz) - p->yaw;
+        while (angle >  PI) angle -= 2*PI;
+        while (angle < -PI) angle += 2*PI;
+        if (fabs(angle) < 0.35) {
+            enemies[i].health--;
+            if (enemies[i].health <= 0) {
+                enemies[i].alive = 0;
+                p->score += 50;
+            }
         }
     }
 }
 
-/* --- Hareket --- */
-static void move_player(Player *p, const Uint8 *keys, double dt) {
-    double speed = 3.0 * dt;
-    double turn  = 2.0 * dt;
+/* ===== KAMERA AYARLA ===== */
+static void setup_camera(Player *p) {
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(75.0, (double)SCREEN_W / SCREEN_H, 0.05, 100.0);
 
-    /* Dönüş */
-    if (keys[SDL_SCANCODE_LEFT]  || keys[SDL_SCANCODE_Q]) p->angle -= turn;
-    if (keys[SDL_SCANCODE_RIGHT] || keys[SDL_SCANCODE_E]) p->angle += turn;
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 
-    /* İleri/geri */
-    double moveX = 0, moveY = 0;
-    if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) {
-        moveX += cos(p->angle) * speed;
-        moveY += sin(p->angle) * speed;
-    }
-    if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) {
-        moveX -= cos(p->angle) * speed;
-        moveY -= sin(p->angle) * speed;
-    }
-    /* Yan kayma */
-    if (keys[SDL_SCANCODE_A]) {
-        moveX += cos(p->angle - PI / 2) * speed;
-        moveY += sin(p->angle - PI / 2) * speed;
-    }
-    if (keys[SDL_SCANCODE_D]) {
-        moveX += cos(p->angle + PI / 2) * speed;
-        moveY += sin(p->angle + PI / 2) * speed;
-    }
+    double eyeX = p->x;
+    double eyeY = p->y + 1.7;
+    double eyeZ = p->z;
 
-    /* Çarpışma (ayrı eksen) */
-    double nx = p->x + moveX;
-    double ny = p->y + moveY;
-    double r = 0.25;
+    double lookX = eyeX + sin(p->yaw) * cos(p->pitch);
+    double lookY = eyeY + sin(p->pitch);
+    double lookZ = eyeZ - cos(p->yaw) * cos(p->pitch);
 
-    if (!map_solid((int)(nx + r), (int)p->y) &&
-        !map_solid((int)(nx - r), (int)p->y))
-        p->x = nx;
-    if (!map_solid((int)p->x, (int)(ny + r)) &&
-        !map_solid((int)p->x, (int)(ny - r)))
-        p->y = ny;
+    gluLookAt(eyeX, eyeY, eyeZ,
+              lookX, lookY, lookZ,
+              0, 1, 0);
 }
 
-/* --- FARE ile kamera --- */
-static void handle_mouse(Player *p, int rel_x) {
-    p->angle += rel_x * 0.003;
+/* ===== IŞIKLANDIRMA ===== */
+static void setup_lighting(void) {
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_LIGHT1);
+    glShadeModel(GL_SMOOTH);
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
+    GLfloat ambient[]  = {0.35f, 0.35f, 0.40f, 1.0f};
+    GLfloat diffuse[]  = {1.0f,  0.95f, 0.85f, 1.0f};
+    GLfloat pos0[]     = {10.f, 15.f, 10.f, 1.f};
+    GLfloat pos1[]     = {10.f,  8.f, 10.f, 1.f};
+    GLfloat diff1[]    = {0.3f,  0.4f, 0.6f, 1.f};
+
+    glLightfv(GL_LIGHT0, GL_AMBIENT,  ambient);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE,  diffuse);
+    glLightfv(GL_LIGHT0, GL_POSITION, pos0);
+    glLightfv(GL_LIGHT1, GL_DIFFUSE,  diff1);
+    glLightfv(GL_LIGHT1, GL_POSITION, pos1);
 }
 
-/* --- Ana fonksiyon --- */
+/* ===== RESET ===== */
+static void reset_game(Player *p, Coin *coins, Enemy *enemies,
+                        int coin_pos[][2], int epos[][2]) {
+    p->x = 2.5; p->y = 0.0; p->z = 2.5;
+    p->yaw = 0; p->pitch = 0;
+    p->health = 100; p->score = 0;
+    for (int i = 0; i < MAX_COINS; i++) {
+        coins[i].x = coin_pos[i][0];
+        coins[i].z = coin_pos[i][1];
+        coins[i].y = 0.6;
+        coins[i].collected = 0;
+        coins[i].spin = 0;
+    }
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        enemies[i].x = epos[i][0] + 0.5;
+        enemies[i].z = epos[i][1] + 0.5;
+        enemies[i].y = 0;
+        enemies[i].alive = 1;
+        enemies[i].health = 3;
+        enemies[i].speed = 0.015 + i * 0.005;
+        enemies[i].spin = 0;
+    }
+}
+
+/* ===== ANA FONKSİYON ===== */
 int main(int argc, char *argv[]) {
     (void)argc; (void)argv;
     srand((unsigned)time(NULL));
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
-        fprintf(stderr, "SDL init hata: %s\n", SDL_GetError());
+        fprintf(stderr, "SDL init hatasi: %s\n", SDL_GetError());
         return 1;
     }
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 
     SDL_Window *win = SDL_CreateWindow(
-        "Roblox Tarzli Oyun - C ile Yapildi!",
+        "Roblox Tarzli 3D Oyun - OpenGL",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        SCREEN_W, SCREEN_H, 0);
+        SCREEN_W, SCREEN_H,
+        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     if (!win) {
         fprintf(stderr, "Pencere hatasi: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
+        SDL_Quit(); return 1;
     }
 
-    SDL_Renderer *rend = SDL_CreateRenderer(win, -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!rend) {
-        rend = SDL_CreateRenderer(win, -1, 0); /* software fallback */
+    SDL_GLContext ctx = SDL_GL_CreateContext(win);
+    if (!ctx) {
+        fprintf(stderr, "OpenGL context hatasi: %s\n", SDL_GetError());
+        SDL_DestroyWindow(win); SDL_Quit(); return 1;
     }
 
-    /* --- Oyuncu --- */
-    Player player = {
-        .x = 2.5, .y = 2.5,
-        .angle = 0,
-        .health = 100,
-        .score = 0
-    };
+    SDL_GL_SetSwapInterval(1); /* VSync */
 
-    /* --- Coinler --- */
-    Coin coins[MAX_COINS];
-    int coin_positions[][2] = {
+    /* OpenGL başlangıç ayarları */
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glEnable(GL_MULTISAMPLE);
+    glClearColor(0.53f, 0.81f, 0.98f, 1.0f);
+
+    /* Oyun verileri */
+    Player player = {.x=2.5, .y=0, .z=2.5, .yaw=0, .pitch=0, .health=100, .score=0};
+
+    int coin_pos[MAX_COINS][2] = {
         {3,3},{5,5},{7,2},{9,9},{11,5},{13,3},{15,7},{17,2},{3,10},
         {6,12},{8,8},{10,14},{12,10},{14,6},{16,12},{4,16},{7,15},
-        {10,17},{13,15},{16,16},{2,7},{18,7},{5,13},{15,13},{9,3},
-        {11,18},{3,17},{17,17},{6,6},{14,14}
+        {10,17},{13,15},{16,16},{2,7},{18,7},{5,13},{15,13},{9,3}
     };
-    for (int i = 0; i < MAX_COINS; i++) {
-        coins[i].x = coin_positions[i][0] + 0.5;
-        coins[i].y = coin_positions[i][1] + 0.5;
-        coins[i].alive = 1;
-        coins[i].collected = 0;
-    }
+    int epos[MAX_ENEMIES][2] = {{10,10},{5,15},{15,5},{12,3},{3,12},{17,15}};
 
-    /* --- Düşmanlar --- */
+    Coin coins[MAX_COINS];
     Enemy enemies[MAX_ENEMIES];
-    int epos[][2] = {{10,10},{5,15},{15,5},{12,3},{3,12}};
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        enemies[i].x = epos[i][0] + 0.5;
-        enemies[i].y = epos[i][1] + 0.5;
-        enemies[i].alive = 1;
-        enemies[i].speed = 0.015 + i * 0.005;
-        enemies[i].health = 3;
-        enemies[i].angle = 0;
-    }
+    reset_game(&player, coins, enemies, coin_pos, epos);
 
     GameState state = STATE_MENU;
-    int running = 1;
-    int frame = 0;
+    int running = 1, frame = 0, mouse_cap = 0;
     Uint32 last_time = SDL_GetTicks();
-    int mouse_captured = 0;
 
     while (running) {
         Uint32 now = SDL_GetTicks();
@@ -581,148 +900,100 @@ int main(int argc, char *argv[]) {
             if (ev.type == SDL_QUIT) { running = 0; break; }
 
             if (ev.type == SDL_KEYDOWN) {
-                if (ev.key.keysym.sym == SDLK_ESCAPE) {
+                SDL_Keycode k = ev.key.keysym.sym;
+                if (k == SDLK_ESCAPE) {
                     if (state == STATE_PLAYING) {
                         SDL_SetRelativeMouseMode(SDL_FALSE);
-                        mouse_captured = 0;
+                        mouse_cap = 0;
                         state = STATE_MENU;
-                    } else {
-                        running = 0;
-                    }
+                    } else running = 0;
                 }
-                if (ev.key.keysym.sym == SDLK_RETURN ||
-                    ev.key.keysym.sym == SDLK_SPACE) {
-                    if (state == STATE_MENU) {
-                        /* Oyunu sıfırla */
-                        player.x = 2.5; player.y = 2.5;
-                        player.angle = 0;
-                        player.health = 100;
-                        player.score = 0;
-                        for (int i = 0; i < MAX_COINS; i++)
-                            coins[i].collected = 0;
-                        for (int i = 0; i < MAX_ENEMIES; i++) {
-                            enemies[i].x = epos[i][0] + 0.5;
-                            enemies[i].y = epos[i][1] + 0.5;
-                            enemies[i].alive = 1;
-                            enemies[i].health = 3;
-                        }
-                        state = STATE_PLAYING;
-                        SDL_SetRelativeMouseMode(SDL_TRUE);
-                        mouse_captured = 1;
-                    } else if (state == STATE_GAMEOVER ||
-                               state == STATE_WIN) {
-                        state = STATE_MENU;
-                    }
+                if ((k == SDLK_RETURN || k == SDLK_SPACE) &&
+                    (state == STATE_MENU)) {
+                    reset_game(&player, coins, enemies, coin_pos, epos);
+                    state = STATE_PLAYING;
+                    SDL_SetRelativeMouseMode(SDL_TRUE);
+                    mouse_cap = 1;
                 }
-                /* Ateş et (boşluk) */
-                if (ev.key.keysym.sym == SDLK_f && state == STATE_PLAYING) {
-                    for (int i = 0; i < MAX_ENEMIES; i++) {
-                        if (!enemies[i].alive) continue;
-                        double dx = enemies[i].x - player.x;
-                        double dy = enemies[i].y - player.y;
-                        double dist = sqrt(dx * dx + dy * dy);
-                        double angle_to = atan2(dy, dx);
-                        double rel = angle_to - player.angle;
-                        while (rel >  PI) rel -= 2 * PI;
-                        while (rel < -PI) rel += 2 * PI;
-                        if (dist < 3.0 && fabs(rel) < 0.3) {
-                            enemies[i].health--;
-                            if (enemies[i].health <= 0) {
-                                enemies[i].alive = 0;
-                                player.score += 50;
-                            }
-                        }
-                    }
-                }
+                if ((k == SDLK_RETURN || k == SDLK_SPACE) &&
+                    (state == STATE_GAMEOVER || state == STATE_WIN))
+                    state = STATE_MENU;
+                if (k == SDLK_f && state == STATE_PLAYING)
+                    shoot(&player, enemies);
             }
 
             if (ev.type == SDL_MOUSEBUTTONDOWN && state == STATE_PLAYING) {
-                if (!mouse_captured) {
+                if (!mouse_cap) {
                     SDL_SetRelativeMouseMode(SDL_TRUE);
-                    mouse_captured = 1;
-                } else {
-                    /* Sol tık: ateş */
-                    for (int i = 0; i < MAX_ENEMIES; i++) {
-                        if (!enemies[i].alive) continue;
-                        double dx = enemies[i].x - player.x;
-                        double dy = enemies[i].y - player.y;
-                        double dist = sqrt(dx * dx + dy * dy);
-                        double angle_to = atan2(dy, dx);
-                        double rel = angle_to - player.angle;
-                        while (rel >  PI) rel -= 2 * PI;
-                        while (rel < -PI) rel += 2 * PI;
-                        if (dist < 4.0 && fabs(rel) < 0.4) {
-                            enemies[i].health--;
-                            if (enemies[i].health <= 0) {
-                                enemies[i].alive = 0;
-                                player.score += 50;
-                            }
-                        }
-                    }
+                    mouse_cap = 1;
+                } else if (ev.button.button == SDL_BUTTON_LEFT) {
+                    shoot(&player, enemies);
                 }
             }
 
-            if (ev.type == SDL_MOUSEMOTION && state == STATE_PLAYING &&
-                mouse_captured) {
-                handle_mouse(&player, ev.motion.xrel);
+            if (ev.type == SDL_MOUSEMOTION && mouse_cap && state == STATE_PLAYING) {
+                player.yaw   += ev.motion.xrel * 0.002;
+                player.pitch -= ev.motion.yrel * 0.002;
+                if (player.pitch >  1.2) player.pitch =  1.2;
+                if (player.pitch < -1.2) player.pitch = -1.2;
             }
         }
 
-        /* --- Güncelle --- */
+        /* Güncelle */
         if (state == STATE_PLAYING) {
             const Uint8 *keys = SDL_GetKeyboardState(NULL);
             move_player(&player, keys, dt);
-            update_enemies(enemies, &player);
+            update_enemies(enemies, &player, dt);
             check_coins(&player, coins);
 
-            /* Kazanma/kaybetme */
-            if (player.health <= 0) state = STATE_GAMEOVER;
-            int uncollected = 0;
-            for (int i = 0; i < MAX_COINS; i++)
-                if (!coins[i].collected) uncollected++;
-            if (uncollected == 0) state = STATE_WIN;
+            if (player.health <= 0) { state = STATE_GAMEOVER; SDL_SetRelativeMouseMode(SDL_FALSE); mouse_cap = 0; }
+            int left = 0;
+            for (int i = 0; i < MAX_COINS; i++) if (!coins[i].collected) left++;
+            if (left == 0) { state = STATE_WIN; SDL_SetRelativeMouseMode(SDL_FALSE); mouse_cap = 0; }
         }
 
-        /* --- Çiz --- */
-        SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
-        SDL_RenderClear(rend);
-
+        /* Çiz */
         if (state == STATE_MENU) {
-            draw_menu(rend, frame);
+            draw_menu_3d(frame);
         } else if (state == STATE_PLAYING) {
-            draw_3d_view(rend, &player);
-            /* Spritelar */
-            for (int i = 0; i < MAX_COINS; i++) {
-                if (!coins[i].collected)
-                    draw_sprite(rend, &player, coins[i].x, coins[i].y,
-                                COL_COIN, 1);
-            }
-            for (int i = 0; i < MAX_ENEMIES; i++) {
-                if (enemies[i].alive)
-                    draw_sprite(rend, &player, enemies[i].x, enemies[i].y,
-                                COL_ENEMY, 1);
-            }
-            int uncollected = 0;
-            for (int i = 0; i < MAX_COINS; i++)
-                if (!coins[i].collected) uncollected++;
-            draw_minimap(rend, &player, coins, enemies);
-            draw_hud(rend, &player, uncollected);
+            glClearColor(0.53f, 0.81f, 0.98f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            /* Gökyüzü */
+            draw_sky();
+
+            setup_camera(&player);
+            setup_lighting();
+
+            /* 3D dünya */
+            draw_floor();
+            draw_map();
+            draw_coins(coins);
+            draw_enemies(enemies);
+
+            /* HUD */
+            int left = 0;
+            for (int i = 0; i < MAX_COINS; i++) if (!coins[i].collected) left++;
+            glDisable(GL_LIGHTING);
+            draw_hud_2d(&player, left, MAX_COINS);
         } else if (state == STATE_GAMEOVER) {
-            draw_gameover(rend, &player);
+            glClearColor(0.1f, 0.0f, 0.0f, 1.f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            draw_gameover_2d(&player);
         } else if (state == STATE_WIN) {
-            draw_win(rend, &player, frame);
+            glClearColor(0.0f, 0.1f, 0.0f, 1.f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            draw_win_2d(&player, frame);
         }
 
-        SDL_RenderPresent(rend);
+        SDL_GL_SwapWindow(win);
 
-        /* FPS limiti */
         Uint32 elapsed = SDL_GetTicks() - now;
-        if (elapsed < FRAME_TIME)
-            SDL_Delay(FRAME_TIME - elapsed);
+        if (elapsed < FRAME_TIME) SDL_Delay(FRAME_TIME - elapsed);
     }
 
-    if (mouse_captured) SDL_SetRelativeMouseMode(SDL_FALSE);
-    SDL_DestroyRenderer(rend);
+    if (mouse_cap) SDL_SetRelativeMouseMode(SDL_FALSE);
+    SDL_GL_DeleteContext(ctx);
     SDL_DestroyWindow(win);
     SDL_Quit();
     return 0;
