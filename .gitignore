@@ -1,0 +1,6 @@
+roblox_game
+roblox_game.exe
+*.o
+*.tar.gz
+*.zip
+SDL2/
